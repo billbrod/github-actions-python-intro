@@ -1,6 +1,6 @@
 # github-actions-python-intro
 
-Quick introduction for using github actions for python objects.
+Quick introduction for using github actions for python code.
 
 The readme will walk through some information, and then the included `##-ci*.yml`
 files show workflows of increasing complexity. To use these for your own
