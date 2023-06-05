@@ -88,9 +88,7 @@ Several things are going on here:
   and the docs for specific actions (e.g.,
   [setup-python](https://github.com/actions/setup-python)) to understand them.
 
-## Next steps
-
-### Build matrix
+## Build matrix
 
 In `00-ci.yml`, we ran our simple tests with python 3.9 on `ubuntu-latest`. What
 if you want to test more OSs and python versions? You do that using the build
@@ -127,7 +125,7 @@ matrix, as demonstrated ina `01-ci-build-matrix.yml`.
 - Github actions will generate all combinations here, so running this action
   will give us nine workflows which all run in parallel.
 
-### Change frequency
+## Change frequency
 
 So far, we've beeen running all our tests every time we push, which is probably
 way too often. Let's change that with `02-ci-freq.yml`, which will build off of
@@ -167,7 +165,7 @@ These are the options I often use. See [github
 docs](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#onpushpull_requestpull_request_targetpathspaths-ignore)
 for more info on the possible options here.
 
-### Tests, linters, etc.
+## Tests, linters, etc.
 
 So far, our test is super basic. What else can we do with CI? Basically,
 whatever you want (with open source code). Let's look at `03-ci-tests.yml`,
@@ -263,4 +261,69 @@ of how I build my docs). Any code that checks something and raises an error
 status (e.g., `exit 1` in bash or `raise Exception` in python) if your
 assumptions aren't met can be useful!
 
-- Use in branch protection rules
+## Use in branch protection rules
+
+When developing a software package that is used by anyone other than yourself,
+you generally don't want to accidentally break something. Writing tests to check
+that things work is a great first step, and CI makes sure that they run
+regularly, so you don't have to remember to do so. But so far, nothing is
+forcing you to make sure your tests pass, so you could (when tired or stressed
+or annoyed) ignore them completely.
+
+To avoid this situation, you can use [branch protection
+rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/managing-a-branch-protection-rule#creating-a-branch-protection-rule)
+to ensure that all required [status checks
+pass](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks)
+before merging any changes into a given branch (such as `main` or
+`development`).
+
+For our purposes, this means making sure that all the workflows pass. You can do
+this by manually adding individual jobs, but there can be many of them
+(especially if you use build matrices) and will require adding/removing them as
+you change the tests you run. Simpler is to use the `alls-green` action, as
+demonstrated in `04-ci-check.yml`.
+
+Running `diff 03-ci-tests.yml 04-ci-check.yml` shows us the following:
+
+``` diff
+30d29
+-     needs: lint
+52a52,63
++ 
++   check:
++     if: always()
++     needs:
++     - lint
++     - tests
++     runs-on: ubuntu-latest
++     steps:
++     - name: Decide whether all tests and notebooks succeeded
++       uses: re-actors/alls-green@afee1c1eac2a506084c274e9c02c8e0687b48d9e # v1.2.2
++       with:
++         jobs: ${{ toJSON(needs) }}
+```
+
+- We've removed the dependency between `lint` and `tests`. Now, the two rules
+  will run independently and in parallel.
+- We've added a new rule, `check`, which will only pass if all of the jobs
+  listed under `needs` (including the many versions spawned by the build matrix)
+  have passed.
+- We can then say that this single status check is required before merging,
+  since it will only pass if everything else passes (we just need to remember to
+  update it as we add new jobs!).
+
+## PyPI deploy
+
+Ran out of time, but see `plenoptic` for an example of how to automatically
+deploy with an
+[action](https://github.com/LabForComputationalVision/plenoptic/blob/main/.github/workflows/deploy.yml),
+as described
+[here](https://github.com/LabForComputationalVision/plenoptic/blob/main/CONTRIBUTING.md#releases).
+
+Based on [python packaging
+guide](https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/).
+
+I recommend you first deploy to the [Test PyPI server](https://test.pypi.org/)
+and ensure your package is installable from there, but I haven't set that up
+yet.
+
