@@ -129,6 +129,49 @@ matrix, as demonstrated ina `01-ci-build-matrix.yml`.
 
 ### Change frequency
 
-- Change frequency
+So far, we've beeen running all our tests every time we push, which is probably
+way too often. Let's change that with `02-ci-freq.yml`, which will build off of
+`01-ci-build-matrix.yml`.
+
+Running `diff 01-ci-build-matrix.yml 02-ci-freq.yml` highlights the following
+differences at the top of the file:
+
+```diff
+3c3,9
+-   push:
+---
++   pull_request:
++     branches:
++     - main
++     - development
++   schedule:
++   - cron: 0 0 * * 0     # weekly
++   workflow_dispatch:
+```
+
+Now, instead of running everytime we push, we have three different triggers:
+- `pull_request: branches:` Everytime we make a pull request with the specified
+  branches (here, `main` and `development`), this workflow will run. This is
+  useful when using [git flow](https://www.gitkraken.com/learn/git/git-flow) for
+  software development to ensure all merged changes pass all tests.
+- `schedule:` This specific line here specifies that we should run the workflow
+  weekly (it follows the syntax of [cron](https://en.wikipedia.org/wiki/Cron), a
+  standard unix utility for scheduling jobs; it can be cryptic but thankfully
+  there are [tools](https://crontab.guru/) to help you generate them). This is
+  useful for ensuring that a change in one of your dependencies doesn't randomly
+  break your code.
+- `workflow_dispatch:` This allows us to manually trigger the workflow, which
+  can be handy.
+
+These are the options I often use. See [github
+docs](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#onpushpull_requestpull_request_targetpathspaths-ignore)
+for more info on the possible options here.
+
+### Tests, linters, etc.
+
+So far, our test is super basic. What else can we do with CI? Basically,
+whatever you want (with open source code). Let's look at `03-ci-tests.yml`,
+which builds off of `01-ci-build-matrix.yml`.
+
 - Use in branch protection rules
 - Run tests, linters, arbitrary code

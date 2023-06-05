@@ -1,0 +1,31 @@
+name: basic-ci
+on:
+  pull_request:
+    branches:
+    - main
+    - development
+  schedule:
+  - cron: 0 0 * * 0     # weekly
+  workflow_dispatch:
+
+jobs:
+  check_pip_install:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: [3.8, 3.9, '3.10']
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Python 3
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: setup.py
+      - name: Install dependencies
+        run: |
+          # using the --upgrade and --upgrade-strategy eager flags ensures that
+          # pip will always install the latest allowed version of all
+          # dependencies, to make sure the cache doesn't go stale
+          pip install --upgrade --upgrade-strategy eager .
