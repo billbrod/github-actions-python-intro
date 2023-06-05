@@ -83,6 +83,52 @@ Several things are going on here:
   actually installs it. Note this mirrors what your users will do!
 - Note that the setup steps include some configuration including, critically,
   the python version. We'll return to that later.
+- Many of the arguments here are keywords. See the [github actions
+  docs](https://docs.github.com/en/actions/learn-github-actions/understanding-github-actions)
+  and the docs for specific actions (e.g.,
+  [setup-python](https://github.com/actions/setup-python)) to understand them.
 
 ## Next steps
 
+### Build matrix
+
+In `00-ci.yml`, we ran our simple tests with python 3.9 on `ubuntu-latest`. What
+if you want to test more OSs and python versions? You do that using the build
+matrix, as demonstrated ina `01-ci-build-matrix.yml`.
+
+- We've removed the `check_conda_install` job so can just focus on the build
+  matrix here, but you can do the same thing for that job, if you'd like.
+- If we look at the diff between the `check_pip_install` for these two files
+  (`diff 00-ci.yml 01-ci-build-matrix.yml`), we see the following:
+
+  ```diff
+  21c7,11
+  -     runs-on: ubuntu-latest
+  ---
+  +     runs-on: ${{ matrix.os }}
+  +     strategy:
+  +       matrix:
+  +         os: [ubuntu-latest, macos-latest, windows-latest]
+  +         python-version: [3.8, 3.9, '3.10']
+  27c17
+  -           python-version: 3.9
+  ---
+  +           python-version: ${{ matrix.python-version }}
+  ```
+  
+- Instead of specifying `runs-on` and `python-version` directly, we're using
+  some strange curly-bracket syntax. These are
+  [contexts](https://docs.github.com/en/actions/learn-github-actions/contexts),
+  which we're accessing usingGithub action's [expressions
+  syntax](https://docs.github.com/en/actions/learn-github-actions/expressions).
+  For our purposes, the use of the lists under `matrix` gives us a for loop over
+  those values, which we access using `${{ matrix.os }}` / `${{
+  matrix.python-version }}`.
+- Github actions will generate all combinations here, so running this action
+  will give us nine workflows which all run in parallel.
+
+### Change frequency
+
+- Change frequency
+- Use in branch protection rules
+- Run tests, linters, arbitrary code
