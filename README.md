@@ -173,5 +173,94 @@ So far, our test is super basic. What else can we do with CI? Basically,
 whatever you want (with open source code). Let's look at `03-ci-tests.yml`,
 which builds off of `01-ci-build-matrix.yml`.
 
+Running `diff 01-ci-build-matrix.yml 03-ci-tests.yml` highlights the following
+at the end of our code:
+
+``` diff
+6c6,30
+-   check_pip_install:
+---
++   lint:
++     runs-on: ubuntu-latest
++     steps:
++       - uses: actions/checkout@v3
++       - name: Install Python 3
++         uses: actions/setup-python@v4
++         with:
++           python-version: 3.9
++           cache: pip
++           cache-dependency-path: setup.py
++       - name: Install dependencies
++         run: |
++           # using the --upgrade and --upgrade-strategy eager flags ensures that
++           # pip will always install the latest allowed version of all
++           # dependencies, to make sure the cache doesn't go stale
++           pip install --upgrade --upgrade-strategy eager .
++           pip install black isort flake8
++       - name: Lint
++         run: |
++           black --check my_package/
++           isort --check my_package/
++           flake8 my_package/ --max-complexity 10
++ 
++   tests:
++     needs: lint
+25a50,52
++           pip install pytest
++       - name: Run pytest
++         run: pytest tests/
+
+```
+
+Here, we've added a new step, `lint`, and changed `check_pip_install` to
+`tests`.
+
+- If you look at `lint` carefully, you can see that it's basically the same as
+  our previous rules except:
+  - we've gone back to a single OS and python version (because the outputs of
+    this shouldn't depend on that)
+  - we have a new `pip install` line, which installs the linters: `black`,
+    `isort`, and `flake8`
+  - we added a new step, `Lint`, which runs all three on a (non-existant)
+    directory named `my_package/`.
+- By passing the `--check` flag, any of these linters will cause the job to fail
+  if our code doesn't meet their standards. This way we know our code looks like
+  what we expect!
+- Similarly, our `tests` step is the exact same as `check_pip_install` from
+  before (including the use of the build matrix for OS and python) except:
+  - we install [pytest](https://docs.pytest.org/en/7.3.x/), a nice testing
+    framework for python.
+  - we add a step, `Run pytest`, which runs `pytest` on a (non-existant)
+    directory named `tests/`.
+  - we added a `needs: lint` line. This means that the two jobs will not run in
+    parallel, but that `tests` will wait for `lint` to succeed before running.
+    This means we won't run tests if the linters don't pass.
+- Similar to the linters, if any of the tests fail, the whole job will fail.
+
+For both of these, we're just taking some arbitrary code that we can (and
+should!) run locally and making sure it gets run everytime the workflow gets
+triggered. Automating them in this way ensures all these checks are run whenever
+necessary, reducing cognitive load on the developers.
+
+But we could include any code here! See the `test_snakefile` and
+`run_Freeman_check_notebook` from my
+[foveated-metamers](https://github.com/billbrod/foveated-metamers/blob/main/.github/workflows/tests.yml#L35)
+github (research code supporting a publication) for more complex examples. In
+the first job, I run a basic
+[snakemake](https://snakemake.readthedocs.io/en/stable/) command to make sure
+that my automated installation and setup steps allow users to run snakemake, a
+workflow manager I use in the project. In the second, I setup the environment
+and run a notebook using `jupyter execute` to make sure anyone who downloads my
+code can do the same.
+
+It doesn't have to call external code either, you can simply include several
+bash lines, as I do in the `no_extra_nblinks` job from
+[plenoptic](https://github.com/LabForComputationalVision/plenoptic/blob/main/.github/workflows/ci.yml#L154).
+Here, I'm just counting the number of `nblink` files that live under the
+`docs/tutorials/` directory and ensuring that it's the same as the number of
+`ipynb` files that live under the `examples/` directory (which is useful because
+of how I build my docs). Any code that checks something and raises an error
+status (e.g., `exit 1` in bash or `raise Exception` in python) if your
+assumptions aren't met can be useful!
+
 - Use in branch protection rules
-- Run tests, linters, arbitrary code
